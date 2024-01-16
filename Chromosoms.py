@@ -1,53 +1,49 @@
-import random
+import numpy as np
+from deap import base, creator, tools, algorithms
 
-def eval_func(chromosome):
-    x, y, z = chromosome
-    fitness = 1 / (1 + (x - 2)**2 + (y + 1)**2 + (z - 1)**2)
-    return fitness,
+# Задаємо довжину хромосоми (3 параметри x, y, z)
+chromosome_length = 3
 
-def initialize_population(population_size, chromosome_length):
-    return [(random.uniform(-10, 10), random.uniform(-10, 10), random.uniform(-10, 10)) for _ in range(population_size)]
+# Визначаємо тип хромосом та фітнес-функції
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("Individual", np.ndarray, fitness=creator.FitnessMax)
 
-def crossover(parent1, parent2):
-    crossover_point = random.randint(0, 2)
-    child = parent1[:crossover_point] + parent2[crossover_point:]
-    return child
+# Ініціалізація параметрів генетичного алгоритму
+toolbox = base.Toolbox()
+toolbox.register("attr_float", np.random.uniform, -10, 10)  # Вибираємо значення з діапазону [-10, 10]
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=chromosome_length)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-def mutate(chromosome, mutation_rate):
-    mutated_chromosome = list(chromosome)
-    for i in range(3):
-        if random.random() < mutation_rate:
-            mutated_chromosome[i] += random.uniform(-1, 1)
-    return tuple(mutated_chromosome)
+# Визначаємо функцію оцінки (fitnes-функцію)
+def eval_func(individual):
+    x, y, z = individual
+    result = 1 / (1 + (x - 2)**2 + (y + 1)**2 + (z - 1)**2)
+    return result,
 
-def genetic_algorithm(population_size, generations, mutation_rate, chromosome_length):
-    population = initialize_population(population_size, chromosome_length)
+# Реєструємо функцію оцінки в toolbox
+toolbox.register("evaluate", eval_func)
 
-    for generation in range(generations):
-        population = sorted(population, key=eval_func, reverse=True)
+# Реєструємо кросовер та мутацію
+toolbox.register("mate", tools.cxBlend, alpha=0.5)
+toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
 
-        parents = population[:population_size // 2]
+# Реєструємо вибірку для відбору
+toolbox.register("select", tools.selTournament, tournsize=3)
 
-        offspring = []
-        while len(offspring) < population_size - len(parents):
-            parent1, parent2 = random.sample(parents, 2)
-            child = crossover(parent1, parent2)
-            child = mutate(child, mutation_rate)
-            offspring.append(child)
+def main():
+    # Створюємо початкову популяцію
+    population = toolbox.population(n=50)
 
-        population = parents + offspring
+    # Встановлюємо параметри еволюції
+    cxpb, mutpb, ngen = 0.7, 0.2, 40
 
-# Max 
-    best_solution = max(population, key=eval_func)
-    return best_solution, eval_func(best_solution)
+    # Викликаємо еволюційний процес
+    algorithms.eaMuPlusLambda(population, toolbox, mu=50, lambda_=200, cxpb=cxpb, mutpb=mutpb, ngen=ngen, stats=None, halloffame=None, verbose=True)
 
-if __name__ == "__main__":
-    population_size = 100
-    generations = 50
-    mutation_rate = 0.1
-    chromosome_length = 3  # Довжина хромосоми
+    # Отримуємо найкращий індивід
+    best_individual = tools.selBest(population, k=1)[0]
+    print("Найкращий індивід: ", best_individual)
+    print("Значення фітнес-функції: ", best_individual.fitness.values)
 
-    best_solution, best_fitness = genetic_algorithm(population_size, generations, mutation_rate, chromosome_length)
-
-    print("Best Solution:", best_solution)
-    print("Best Fitness:", best_fitness)
+if name == "main":
+    main()
